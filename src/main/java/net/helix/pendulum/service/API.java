@@ -579,7 +579,7 @@ public class API {
     public void storeTransactionsStatement(final List<String> txString) throws Exception {
         final List<TransactionViewModel> elements = addValidTxvmToList(txString);
         for (final TransactionViewModel transactionViewModel : elements) {
-            //store transactions
+            //store transactions.
             if(transactionViewModel.store(tangle, snapshotProvider.getInitialSnapshot())) {
                 transactionViewModel.setArrivalTime(System.currentTimeMillis());
                 if (transactionViewModel.isMilestoneBundle(tangle) == null) {
@@ -1090,7 +1090,7 @@ public class API {
             //push first in line to broadcast
             transactionViewModel.weightMagnitude = Sha3.HASH_LENGTH;
             log.debug(
-                    "BCasting tx from api:\n {}", transactionViewModel.toString()
+                    "BCasting tx from api:\n {}", transactionViewModel.getHash().toString()
             );
             node.broadcast(transactionViewModel);
         }
@@ -1517,8 +1517,14 @@ public class API {
      */
     private void storeAndBroadcast(Hash tip1, Hash tip2, int mwm, List<String> txs) throws Exception{
         List<String> powResult = attachToTangleStatement(tip1, tip2, mwm, txs);
-        powResult.forEach(tx->log.debug("length of tx being stored and broadcasted: {}", tx.getBytes().length));
-        log.trace("tips = [{}, {}]", tip1.toString(), tip2.toString());
+        final List<TransactionViewModel> elements = addValidTxvmToList(powResult);
+        elements.forEach(tx->log.debug(
+                "store_bcast_milestone (len,hash,trunk,branch): {} {} {} {}", tx.getBytes().length,
+                tx.getHash().toString(), tx.getTrunkTransactionHash().toString(), tx.getBranchTransactionHash().toString()
+                )
+        );
+        log.debug("tips = [{}, {}]", tip1.toString(), tip2.toString());
+        Collections.reverse(powResult);
         storeTransactionsStatement(powResult);
         broadcastTransactionsStatement(powResult);
     }
@@ -1665,7 +1671,7 @@ public class API {
         // get branch and trunk
         List<Hash> txToApprove = new ArrayList<>();
         if(RoundViewModel.latest(tangle) == null) {
-            txToApprove.add(Hash.NULL_HASH);   // approove initial validatomanager tx
+            txToApprove.add(Hash.NULL_HASH);   // approve initial validator_manager tx
             txToApprove.add(Hash.NULL_HASH);
         } else {
             // trunk
