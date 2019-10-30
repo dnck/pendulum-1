@@ -152,8 +152,8 @@ public class TransactionValidator {
                 transactionViewModel.getAttachmentTimestamp(),
                 transactionViewModel.getTimestamp(),
                 snapshotProvider.getInitialSnapshot().getTimestamp(),
-                snapshotProvider.getInitialSnapshot().hasSolidEntryPoint(transactionViewModel.getHash()));
-
+                snapshotProvider.getInitialSnapshot().hasSolidEntryPoint(transactionViewModel.getHash())
+        );
         if (transactionViewModel.getAttachmentTimestamp() == 0) {
             return transactionViewModel.getTimestamp() < snapshotProvider.getInitialSnapshot().getTimestamp() && !snapshotProvider.getInitialSnapshot().hasSolidEntryPoint(transactionViewModel.getHash())
                     || transactionViewModel.getTimestamp() > (System.currentTimeMillis() / 1000) + MAX_TIMESTAMP_FUTURE;
@@ -187,15 +187,13 @@ public class TransactionValidator {
         }
         for (int i = VALUE_OFFSET + VALUE_USABLE_SIZE; i < VALUE_OFFSET + VALUE_SIZE; i++) { // todo always false.
             if (transactionViewModel.getBytes()[i] != 0) {
-                throw new IllegalStateException("Invalid transaction value");
+                throw new IllegalStateException("Invalid transaction value");//TODO ask OF. Why is this an invalid tx value exception?
             }
         }
-
         int weightMagnitude = transactionViewModel.weightMagnitude;
         if((weightMagnitude < minWeightMagnitude)) {
             throw new IllegalStateException("Invalid transaction hash");
         }
-
         /* todo validation
         if (transactionViewModel.value() != 0 && transactionViewModel.getAddressHash().bytes()[Sha3.HASH_LENGTH - 1] != 0) {
             throw new IllegalStateException("Invalid transaction address");
@@ -515,6 +513,16 @@ public class TransactionValidator {
     public static class StaleTimestampException extends RuntimeException {
         StaleTimestampException (String message) {
             super(message);
+        }
+    }
+
+    public boolean isTrunkBranchSolid(TransactionViewModel transactionViewModel) throws Exception {
+        if (transactionViewModel.getBranchTransaction(tangle).isSolid() &&
+                transactionViewModel.getTrunkTransaction(tangle).isSolid()){
+            return true;
+        }
+        else{
+            return false;
         }
     }
 }

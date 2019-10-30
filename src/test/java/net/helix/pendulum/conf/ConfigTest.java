@@ -67,7 +67,6 @@ public class ConfigTest {
                 "--max-peers", "10",
                 "--dns-refresher", "false",
                 "--dns-resolution", "false",
-                "--XI-dir", "/XI",
                 "--db-path", "/db",
                 "--db-log-path", "/dblog",
                 "--zmq-enabled", "true",
@@ -100,7 +99,6 @@ public class ConfigTest {
         Assert.assertEquals("max peers", 10, pendulumConfig.getMaxPeers());
         Assert.assertEquals("dns refresher", false, pendulumConfig.isDnsRefresherEnabled());
         Assert.assertEquals("dns resolution", false, pendulumConfig.isDnsResolutionEnabled());
-        Assert.assertEquals("XI-dir", "/XI", pendulumConfig.getXiDir());
         Assert.assertEquals("db path", "/db", pendulumConfig.getDbPath());
         Assert.assertEquals("zmq enabled", true, pendulumConfig.isZmqEnabled());
         Assert.assertNotEquals("mwm", 4, pendulumConfig.getMwm());
@@ -135,7 +133,6 @@ public class ConfigTest {
                 "--max-peers", "10",
                 "--dns-refresher", "false",
                 "--dns-resolution", "false",
-                "--XI-dir", "/XI",
                 "--db-path", "/db",
                 "--db-log-path", "/dblog",
                 "--zmq-enabled", "true",
@@ -168,7 +165,6 @@ public class ConfigTest {
         Assert.assertEquals("max peers", 10, pendulumConfig.getMaxPeers());
         Assert.assertEquals("dns refresher", false, pendulumConfig.isDnsRefresherEnabled());
         Assert.assertEquals("dns resolution", false, pendulumConfig.isDnsResolutionEnabled());
-        Assert.assertEquals("XI-dir", "/XI", pendulumConfig.getXiDir());
         Assert.assertEquals("db path", "/db", pendulumConfig.getDbPath());
         Assert.assertEquals("zmq enabled", true, pendulumConfig.isZmqEnabled());
         Assert.assertEquals("mwm", 4, pendulumConfig.getMwm());

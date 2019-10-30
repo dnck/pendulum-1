@@ -2,10 +2,8 @@ package net.helix.pendulum.service;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import net.helix.pendulum.XI;
 import net.helix.pendulum.Pendulum;
 import net.helix.pendulum.conf.ConfigFactory;
-import net.helix.pendulum.conf.XIConfig;
 import net.helix.pendulum.conf.PendulumConfig;
 import net.helix.pendulum.controllers.TransactionViewModel;
 import net.helix.pendulum.crypto.SpongeFactory;
@@ -72,7 +70,6 @@ public class APIIntegrationTest {
 
     private static Pendulum pendulum;
     private static API api;
-    private static XI Xi;
     private static PendulumConfig configuration;
     private static final Logger log = LoggerFactory.getLogger(APIIntegrationTest.class);
 
@@ -92,8 +89,7 @@ public class APIIntegrationTest {
 
             //create node
             pendulum = new Pendulum(configuration);
-            Xi = new XI(pendulum);
-            ApiArgs apiArgs = new ApiArgs(pendulum, Xi);
+            ApiArgs apiArgs = new ApiArgs(pendulum);
             api = new API(apiArgs);
 
             //init
@@ -101,7 +97,6 @@ public class APIIntegrationTest {
                 pendulum.init();
                 pendulum.snapshotProvider.getInitialSnapshot().setTimestamp(0);
                 api.init(new RestEasy(configuration));
-                Xi.init(XIConfig.XI_DIR);
             } catch (final Exception e) {
                 log.error("Exception during Pendulum node initialisation: ", e);
                 fail("Exception during Pendulum node initialisation");
@@ -114,7 +109,6 @@ public class APIIntegrationTest {
     public static void shutdown() {
         if (spawnNode) {
             try {
-                Xi.shutdown();
                 api.shutDown();
                 pendulum.shutdown();
                 // shutdown spentAddressesProvider.rocksDBPersistenceProvider to avoid an exception in other unit-tests

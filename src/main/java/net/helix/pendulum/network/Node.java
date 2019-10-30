@@ -305,6 +305,26 @@ public class Node {
                     //if not cached, then validate
                     if (!cached) {
                         TransactionViewModel receivedTransactionViewModel = new TransactionViewModel(receivedData, TransactionHash.calculate(receivedData, TransactionViewModel.SIZE, SpongeFactory.create(SpongeFactory.Mode.S256)));
+                        //receivedTransactionViewModel
+                        try {
+                            log.debug("rec_tx, nonce = {} {}",
+                                    receivedTransactionViewModel.getHash().toString(),
+                                    Hex.toHexString(receivedTransactionViewModel.getNonce())
+
+                            );
+                            boolean do_not_accept_nonsolids = false;//you can make it such that node's can't communicate like this
+                            if (do_not_accept_nonsolids){//(!receivedTransactionViewModel.isMilestone() && !transactionValidator.isTrunkBranchSolid(receivedTransactionViewModel)){
+                                log.debug("Dropping received tx.");
+                                log.debug("Address: {}", receivedTransactionViewModel.getAddressHash().toString());
+                                log.debug("Tx is milestone? {}", receivedTransactionViewModel.isMilestone());
+                                log.debug("Tx trunk and branch solid? {}", transactionValidator.isTrunkBranchSolid(receivedTransactionViewModel));
+                                return;
+                            }
+                        }
+                        catch(Exception err)
+                        {
+                            log.debug("Trunk and branch were not solid. And, something broke.");
+                        }
                         receivedTransactionHash = receivedTransactionViewModel.getHash();
                         transactionValidator.runValidation(receivedTransactionViewModel, transactionValidator.getMinWeightMagnitude());
                         log.trace("Received_txvm / sender / isMilestone = {} {} {}", receivedTransactionHash.toString(), senderAddress.toString(), receivedTransactionViewModel.isMilestone());
@@ -463,6 +483,12 @@ public class Node {
 
         //if new, then broadcast to all neighbors
         if (stored) {
+            log.debug(
+                    "rec_tx_arr_time = {}", receivedTransactionViewModel.getArrivalTime()
+            );
+            log.debug(
+                    "rec_tx_new_arr_time = {}", receivedTransactionViewModel.getArrivalTime()
+            );
             receivedTransactionViewModel.setArrivalTime(System.currentTimeMillis()/1000L);
             try {
                 transactionValidator.updateStatus(receivedTransactionViewModel);
@@ -651,7 +677,7 @@ public class Node {
                         for (final Neighbor neighbor : neighbors) {
                             try {
                                 sendPacket(sendingPacket, transactionViewModel, neighbor);
-                                log.trace("Broadcasted_txhash = {}", transactionViewModel.getHash().toString());
+                                log.debug("Broadcasted_txhash = {}", transactionViewModel.getHash().toString());
                             } catch (final Exception e) {
                                 // ignore
                             }

@@ -6,7 +6,6 @@ import com.google.gson.JsonSyntaxException;
 import net.helix.pendulum.BundleValidator;
 import net.helix.pendulum.Main;
 import net.helix.pendulum.TransactionValidator;
-import net.helix.pendulum.XI;
 import net.helix.pendulum.conf.APIConfig;
 import net.helix.pendulum.conf.BasePendulumConfig;
 import net.helix.pendulum.conf.PendulumConfig;
@@ -96,7 +95,6 @@ public class API {
     //region [CONSTRUCTOR_FIELDS] ///////////////////////////////////////////////////////////////////////////////
 
     private final PendulumConfig configuration;
-    private final XI XI;
     private final TransactionRequester transactionRequester;
     private final SpentAddressesService spentAddressesService;
     private final Tangle tangle;
@@ -136,8 +134,6 @@ public class API {
      */
     public API(ApiArgs args) {
         this.configuration = args.getConfiguration();
-        this.XI = args.getXI();
-
         this.transactionRequester = args.getTransactionRequester();
         this.spentAddressesService = args.getSpentAddressesService();
         this.tangle = args.getTangle();
@@ -257,13 +253,9 @@ public class API {
             if (apiCommand != null) {
                 return commandRoute.get(apiCommand).apply(request);
             } else {
-                AbstractResponse response = XI.processCommand(command, request);
-                if (response == null) {
-                    return ErrorResponse.create("Command [" + command + "] is unknown");
-                } else {
-                    return response;
-                }
+                return ErrorResponse.create("Command [" + command + "] is unknown");
             }
+
         } catch (ValidationException e) {
             log.error("API Validation failed: " + e.getLocalizedMessage());
             return ExceptionResponse.create(e.getLocalizedMessage());
@@ -298,7 +290,7 @@ public class API {
     }
 
     /**
-     * Walks back from the hash until a tail transaction has been found or transaction aprovee is not found.
+     * Walks back from the hash until a tail transaction has been found or there are no children transactions remaining.
      * A tail transaction is the first transaction in a bundle, thus with <code>index = 0</code>
      *
      * @param hash The transaction hash where we start the search from. If this is a tail, its hash is returned.
@@ -511,11 +503,9 @@ public class API {
         if (depth < 0 || depth > configuration.getMaxDepth()) {
             return ErrorResponse.create("Invalid depth input");
         }
-
         try {
             List<Hash> tips = getTransactionToApproveTips(depth, reference);
             return GetTransactionsToApproveResponse.create(tips.get(0), tips.get(1));
-
         } catch (Exception e) {
             log.info("Tip selection failed: " + e.getLocalizedMessage());
             return ErrorResponse.create(e.getLocalizedMessage());
@@ -536,9 +526,7 @@ public class API {
         if (invalidSubtangleStatus()) {
             throw new IllegalStateException(INVALID_SUBTANGLE);
         }
-
         List<Hash> tips = tipsSelector.getTransactionsToApprove(depth, reference);
-
         if (log.isDebugEnabled()) {
             gatherStatisticsOnTipSelection();
         }
@@ -607,6 +595,10 @@ public class API {
         }
     }
 
+    /**
+     * @param txString a list of tx hash strings
+     * @return elements a linked list valid transaction view models
+     */
     private LinkedList addValidTxvmToList(List<String> txString){
         final List<TransactionViewModel> elements = new LinkedList<>();
         byte[] txBytes;
@@ -1097,6 +1089,9 @@ public class API {
         for (final TransactionViewModel transactionViewModel : elements) {
             //push first in line to broadcast
             transactionViewModel.weightMagnitude = Sha3.HASH_LENGTH;
+            log.debug(
+                    "BCasting tx from api:\n {}", transactionViewModel.toString()
+            );
             node.broadcast(transactionViewModel);
         }
     }
@@ -1522,6 +1517,7 @@ public class API {
      */
     private void storeAndBroadcast(Hash tip1, Hash tip2, int mwm, List<String> txs) throws Exception{
         List<String> powResult = attachToTangleStatement(tip1, tip2, mwm, txs);
+        powResult.forEach(tx->log.debug("length of tx being stored and broadcasted: {}", tx.getBytes().length));
         log.trace("tips = [{}, {}]", tip1.toString(), tip2.toString());
         storeTransactionsStatement(powResult);
         broadcastTransactionsStatement(powResult);
@@ -1572,6 +1568,8 @@ public class API {
     private void storeCustomBundle(final Hash sndAddr, final Hash rcvAddr, List<Hash> txToApprove, byte[] data, final long tag, final int mwm, boolean sign, int keyIdx, int maxKeyIdx, String keyfile, int security) throws Exception {
         BundleUtils bundle = new BundleUtils(sndAddr, rcvAddr);
         bundle.create(data, tag, sign, keyIdx, maxKeyIdx, keyfile, security);
+        log.debug("Validator is storing and broadcasting.");
+        //transaction.isMilestone(tangle, snapshotProvider.getInitialSnapshot(), true);
         storeAndBroadcast(txToApprove.get(0), txToApprove.get(1), mwm, bundle.getTransactions());
     }
 
@@ -1592,6 +1590,7 @@ public class API {
         byte[] tipsBytes = Hex.decode(confirmedTips.stream().map(Hash::toString).collect(Collectors.joining()));
 
         List<Hash> txToApprove = addMilestoneReferences(confirmedTips, currentRoundIndex);
+
         storeCustomBundle(HashFactory.ADDRESS.create(address), Hash.NULL_HASH, txToApprove, tipsBytes, (long) currentRoundIndex, minWeightMagnitude, sign, keyIndex, maxKeyIndex, configuration.getValidatorKeyfile(), configuration.getValidatorSecurity());
     }
 

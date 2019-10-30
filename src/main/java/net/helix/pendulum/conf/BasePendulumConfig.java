@@ -368,17 +368,6 @@ public abstract class BasePendulumConfig implements PendulumConfig {
     }
 
     @Override
-    public String getXiDir() {
-        return xiDir;
-    }
-
-    @JsonProperty
-    @Parameter(names = {"--XI-dir"}, description = XIConfig.Descriptions.XI_DIR)
-    protected void setXiDir(String xiDir) {
-        this.xiDir = xiDir;
-    }
-
-    @Override
     public String getDbPath() {
         return dbPath;
     }

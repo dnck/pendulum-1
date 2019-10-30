@@ -3,7 +3,6 @@ package net.helix.pendulum.service;
 import net.helix.pendulum.BundleValidator;
 import net.helix.pendulum.Pendulum;
 import net.helix.pendulum.TransactionValidator;
-import net.helix.pendulum.XI;
 import net.helix.pendulum.conf.PendulumConfig;
 import net.helix.pendulum.controllers.TipsViewModel;
 import net.helix.pendulum.network.Node;
@@ -23,11 +22,6 @@ public class ApiArgs {
      */
     private PendulumConfig configuration;
 
-    /**
-     * If a command is not in the standard API,
-     * we try to process it as a Nashorn JavaScript module through {@link XI}
-     */
-    private XI XI;
 
     /**
      * Service where transactions get requested
@@ -98,9 +92,8 @@ public class ApiArgs {
         this.configuration = configuration;
     }
 
-    public ApiArgs(Pendulum pendulum, XI xi) {
+    public ApiArgs(Pendulum pendulum) {
         this.configuration = pendulum.configuration;
-        this.XI = xi;
         this.transactionRequester = pendulum.transactionRequester;
         this.spentAddressesService = pendulum.spentAddressesService;
         this.tangle = pendulum.tangle;
@@ -121,14 +114,6 @@ public class ApiArgs {
 
     public void setConfiguration(PendulumConfig configuration) {
         this.configuration = configuration;
-    }
-
-    public XI getXI() {
-        return XI;
-    }
-
-    public void setXI(XI XI) {
-        this.XI = XI;
     }
 
     public TransactionRequester getTransactionRequester() {

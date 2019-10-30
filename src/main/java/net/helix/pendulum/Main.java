@@ -97,7 +97,6 @@ public class Main {
 
         public static Pendulum pendulum;
         public static API api;
-        public static XI XI;
         public static MilestonePublisher milestonePublisher;
         public static ValidatorPublisher validatorPublisher;
 
@@ -105,9 +104,9 @@ public class Main {
          * Starts Pendulum. Setup is as follows:
          * <ul>
          *     <li>Load the configuration.</li>
-         *     <li>Create {@link Pendulum}, {@link XI} and {@link API}.</li>
+         *     <li>Create {@link Pendulum} {@link API}.</li>
          *     <li>Listen for node shutdown.</li>
-         *     <li>Initialize {@link Pendulum}, {@link XI} and {@link API} using their <tt>init()</tt> methods.</li>
+         *     <li>Initialize {@link Pendulum} {@link API} using their <tt>init()</tt> methods.</li>
          * </ul>
          *
          * If no exception is thrown, the node starts synchronizing with the network, and the API can be used.
@@ -120,16 +119,13 @@ public class Main {
             log.info("Welcome to {} {}", config.isTestnet() ? TESTNET_NAME : MAINNET_NAME, VERSION);
 
             pendulum = new Pendulum(config);
-            XI = new XI(pendulum);
-            ApiArgs apiArgs = new ApiArgs(pendulum, XI);
+            ApiArgs apiArgs = new ApiArgs(pendulum);
             api = new API(apiArgs);
             shutdownHook();
 
             try {
                 pendulum.init();
                 api.init(new RestEasy(pendulum.configuration));
-                //TODO redundant parameter but we will touch this when we refactor XI
-                XI.init(config.getXiDir());
                 log.info("Pendulum Node initialised correctly.");
             } catch (Exception e) {
                 log.error("Exception during Pendulum node initialisation: ", e);
@@ -146,7 +142,7 @@ public class Main {
         }
 
         /**
-         * Gracefully shuts down the node by calling <tt>shutdown()</tt> on {@link Pendulum}, {@link XI} and {@link API}.
+         * Gracefully shuts down the node by calling <tt>shutdown()</tt> on {@link Pendulum} and {@link API}.
          * Exceptions during shutdown are caught and logged.
          */
         private static void shutdownHook() {
@@ -159,7 +155,6 @@ public class Main {
                     /*if (pendulum.configuration.getValidatorManagerEnabled()) {
                         validatorPublisher.shutdown();
                     }*/
-                    XI.shutdown();
                     api.shutDown();
                     pendulum.shutdown();
                 } catch (Exception e) {
