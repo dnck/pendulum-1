@@ -1086,11 +1086,12 @@ public class API {
      **/
     public void broadcastTransactionsStatement(final List<String> txString) {
         final List<TransactionViewModel> elements = addValidTxvmToList(txString);
+        //Collections.reverse(elements);
         for (final TransactionViewModel transactionViewModel : elements) {
             //push first in line to broadcast
             transactionViewModel.weightMagnitude = Sha3.HASH_LENGTH;
             log.debug(
-                    "BCasting tx from api:\n {}", transactionViewModel.getHash().toString()
+                    "BCasting tx from api: {}", transactionViewModel.getHash().toString()
             );
             node.broadcast(transactionViewModel);
         }
@@ -1501,7 +1502,7 @@ public class API {
         sponge.squeeze(essenceHash, 0, essenceHash.length);
         final String bundleHash = Hex.toHexString(essenceHash);
         transactions = transactions.stream().map(tx -> StringUtils.rightPad(tx + bundleHash + StringUtils.repeat('0', 128) + tagHex, BYTES_SIZE, '0')).collect(Collectors.toList());
-        Collections.reverse(transactions);
+        //Collections.reverse(transactions);
         List<String> powResult = attachToTangleStatement(txToApprove.get(0), txToApprove.get(1), minWeightMagnitude, transactions);
         storeTransactionsStatement(powResult);
         broadcastTransactionsStatement(powResult);
@@ -1519,8 +1520,9 @@ public class API {
         List<String> powResult = attachToTangleStatement(tip1, tip2, mwm, txs);
         final List<TransactionViewModel> elements = addValidTxvmToList(powResult);
         elements.forEach(tx->log.debug(
-                "store_bcast_milestone (len,hash,trunk,branch): {} {} {} {}", tx.getBytes().length,
-                tx.getHash().toString(), tx.getTrunkTransactionHash().toString(), tx.getBranchTransactionHash().toString()
+                "store_bcast_milestone (len,hash,trunk,branch): {} {} {} {} {}", tx.getBytes().length,
+                tx.getHash().toString(), tx.getTrunkTransactionHash().toString(), tx.getBranchTransactionHash().toString(),
+                tx.getCurrentIndex()
                 )
         );
         log.debug("tips = [{}, {}]", tip1.toString(), tip2.toString());

@@ -60,6 +60,7 @@ public class Node {
     private final AtomicBoolean shuttingDown = new AtomicBoolean(false);
 
     private final List<Neighbor> neighbors = new CopyOnWriteArrayList<>();
+    private final List<Hash> solidSet = new CopyOnWriteArrayList<>();
     private final ConcurrentSkipListSet<TransactionViewModel> broadcastQueue = weightQueue();
     private final ConcurrentSkipListSet<Pair<TransactionViewModel, Neighbor>> receiveQueue = weightQueueTxPair();
     private final ConcurrentSkipListSet<Pair<Hash, Neighbor>> replyQueue = weightQueueHashPair();
@@ -313,37 +314,32 @@ public class Node {
 
                             );
 
-                            boolean do_not_accept_nonsolids = false;//you can make it such that nodes can't communicate like this
-
-                            if (
-                                    (
-                                     !rcvdTxvm.isMilestone()
-                                             &&
-                                      !transactionValidator.isTrunkBranchSolid(rcvdTxvm)
-                                    )
-                                            |
-                                    (
-                                     rcvdTxvm.getTrunkTransactionHash()==Hash.NULL_HASH
-                                             &&
-                                     rcvdTxvm.getBranchTransactionHash()==Hash.NULL_HASH
-                                    )
-                            )
+                            boolean condition_isMilestone = rcvdTxvm.isMilestone();
+                            boolean condition_trunkBranchSolid = transactionValidator.isTrunkBranchSolid(rcvdTxvm);
+                            boolean condition_genesisReferences = rcvdTxvm.getTrunkTransactionHash().equals(Hash.NULL_HASH) && rcvdTxvm.getBranchTransactionHash().equals(Hash.NULL_HASH);
+                            boolean condition_inSolidSet0 = solidSet.contains(rcvdTxvm.getBranchTransactionHash());
+                            boolean condition_inSolidSet1 = solidSet.contains(rcvdTxvm.getTrunkTransactionHash());
+                            boolean drop_tx = true;
+                            if (condition_isMilestone){drop_tx = false;}
+                            if (condition_trunkBranchSolid){drop_tx = false;}
+                            if (condition_genesisReferences){drop_tx = false;}
+                            if (condition_inSolidSet0 && condition_inSolidSet1){drop_tx = false;}
+                            if (drop_tx)
                             {
-                                log.debug("Dropping received tx.");
-                                log.debug("Null hash? {}", rcvdTxvm.getHash()==Hash.NULL_HASH);
-
-                                log.debug("trunk hash: {}", rcvdTxvm.getTrunkTransactionHash().toString());
-                                log.debug("branch hash: {}", rcvdTxvm.getBranchTransactionHash().toString());
-
-                                //log.debug("Address: {}", rcvdTxvm.getAddressHash().toString());
-                                //log.debug("Tx is milestone? {}", rcvdTxvm.isMilestone());
-                                //log.debug("Tx trunk and branch solid? {}", transactionValidator.isTrunkBranchSolid(rcvdTxvm));
+                                log.debug("Dropped received tx = {} ", rcvdTxvm.getHash().toString());
+                                log.debug("Genesis references? {}", condition_genesisReferences);
+                                log.debug("Tx is milestone? {}", condition_isMilestone);
+                                log.debug("Tx trunk and branch solid? {}", condition_trunkBranchSolid);
                                 return;
                             }
+                            // If the tx was not dropped, it is either
+                            // 1. a milestone, 2. its trunk and branch are solid,
+                            // or, 3. it will eventually be solid since its parents are solid.
+                            solidSet.add(rcvdTxvm.getHash());
                         }
                         catch(Exception err)
                         {
-                            log.debug("Trunk and branch were not solid. And, something broke.");
+                            log.debug("Something broke. Make this message better please!");
                         }
                         receivedTransactionHash = rcvdTxvm.getHash();
                         transactionValidator.runValidation(rcvdTxvm, transactionValidator.getMinWeightMagnitude());
@@ -351,10 +347,8 @@ public class Node {
                         synchronized (recentSeenBytes) {
                             recentSeenBytes.put(digest, receivedTransactionHash);
                         }
-
                         //if valid - add to receive queue (receivedTransactionViewModel, neighbor)
                         addReceivedDataToReceiveQueue(rcvdTxvm, neighbor);
-
                     }
 
                 } catch (NoSuchAlgorithmException e) {
@@ -681,25 +675,26 @@ public class Node {
      * This thread picks up a new transaction from the broadcast queue and
      * spams it to all of the neigbors. Sadly, this also includes the neigbor who
      * originally sent us the transaction. This could be improved in future.
-     *
+     * Modified by dnck to make it such that nodes don't send back to the sender.
      */
     private Runnable spawnBroadcasterThread() {
         return () -> {
-
             log.info("Spawning Broadcaster Thread");
-
             while (!shuttingDown.get()) {
-
                 try {
+                    //broadcastQueue.forEach(tx->log.debug("bcastQueue_item = {}", tx.getHash().toString()));
                     final TransactionViewModel transactionViewModel = broadcastQueue.pollFirst();
                     if (transactionViewModel != null) {
-
+                        String sender = transactionViewModel.getSender();
                         for (final Neighbor neighbor : neighbors) {
-                            try {
-                                sendPacket(sendingPacket, transactionViewModel, neighbor);
-                                log.debug("Broadcasted_txhash = {}", transactionViewModel.getHash().toString());
-                            } catch (final Exception e) {
-                                // ignore
+                            // Do not send the tx back to the sender we have on record
+                            if (!sender.equals(neighbor.getAddress().toString())){
+                                try {
+                                    sendPacket(sendingPacket, transactionViewModel, neighbor);
+                                    log.debug("Broadcasted_txhash = {}", transactionViewModel.getHash().toString());
+                                } catch (final Exception e) {
+                                    // ignore
+                                }
                             }
                         }
                     }
@@ -711,7 +706,6 @@ public class Node {
             log.info("Shutting down Broadcaster Thread");
         };
     }
-
     /**
      * We send a tip request packet (transaction corresponding to the latest milestone)
      * to all of our neighbors periodically.
@@ -792,17 +786,23 @@ public class Node {
     }
 
 
+
     private static ConcurrentSkipListSet<TransactionViewModel> weightQueue() {
         return new ConcurrentSkipListSet<>((transaction1, transaction2) -> {
-            if (transaction1.weightMagnitude == transaction2.weightMagnitude) {
-                for (int i = Hash.SIZE_IN_BYTES; i-- > 0; ) {
-                    if (transaction1.getHash().bytes()[i] != transaction2.getHash().bytes()[i]) {
-                        return transaction2.getHash().bytes()[i] - transaction1.getHash().bytes()[i];
-                    }
-                }
+            if (transaction1.getCurrentIndex() > transaction1.getCurrentIndex()){
                 return 0;
             }
-            return transaction2.weightMagnitude - transaction1.weightMagnitude;
+            return 1;
+//            if (transaction1.weightMagnitude == transaction2.weightMagnitude) {
+//                for (int i = Hash.SIZE_IN_BYTES; i-- > 0; ) {
+//                    if (transaction1.getHash().bytes()[i] != transaction2.getHash().bytes()[i]) {
+//                        return transaction2.getHash().bytes()[i] - transaction1.getHash().bytes()[i];
+//                    }
+//                }
+//                return 0;
+//            }
+//            return transaction2.weightMagnitude - transaction1.weightMagnitude;
+
         });
     }
 
@@ -842,7 +842,9 @@ public class Node {
 
     public void broadcast(final TransactionViewModel transactionViewModel) {
         broadcastQueue.add(transactionViewModel);
+
         if (broadcastQueue.size() > BROADCAST_QUEUE_SIZE) {
+            log.debug("Dropping item from broadcast queue");
             broadcastQueue.pollLast();
         }
     }
