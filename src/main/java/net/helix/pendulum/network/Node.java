@@ -682,7 +682,7 @@ public class Node {
             log.info("Spawning Broadcaster Thread");
             while (!shuttingDown.get()) {
                 try {
-                    //broadcastQueue.forEach(tx->log.debug("bcastQueue_item = {}", tx.getHash().toString()));
+                    broadcastQueue.forEach(tx->log.debug("bcastQueue_item = {}", tx.getHash().toString()));
                     final TransactionViewModel transactionViewModel = broadcastQueue.pollFirst();
                     if (transactionViewModel != null) {
                         String sender = transactionViewModel.getSender();
@@ -789,10 +789,19 @@ public class Node {
 
     private static ConcurrentSkipListSet<TransactionViewModel> weightQueue() {
         return new ConcurrentSkipListSet<>((transaction1, transaction2) -> {
-            if (transaction1.getCurrentIndex() > transaction1.getCurrentIndex()){
+
+            if (transaction1.getAttachmentTimestamp() == transaction2.getAttachmentTimestamp()){
+
+                if (transaction1.getCurrentIndex() > transaction2.getCurrentIndex())
+                {
+                    return 1;
+                }
                 return 0;
             }
-            return 1;
+            if (transaction1.getCurrentIndex() > transaction2.getCurrentIndex()){
+                return 1;
+            }
+            return -1;
 //            if (transaction1.weightMagnitude == transaction2.weightMagnitude) {
 //                for (int i = Hash.SIZE_IN_BYTES; i-- > 0; ) {
 //                    if (transaction1.getHash().bytes()[i] != transaction2.getHash().bytes()[i]) {
@@ -841,6 +850,7 @@ public class Node {
 
 
     public void broadcast(final TransactionViewModel transactionViewModel) {
+        log.debug("tx added to bcast queue = {}", transactionViewModel.getHash().toString());
         broadcastQueue.add(transactionViewModel);
 
         if (broadcastQueue.size() > BROADCAST_QUEUE_SIZE) {

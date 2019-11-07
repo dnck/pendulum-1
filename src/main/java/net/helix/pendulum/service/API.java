@@ -14,6 +14,7 @@ import net.helix.pendulum.crypto.*;
 import net.helix.pendulum.model.Hash;
 import net.helix.pendulum.model.HashFactory;
 import net.helix.pendulum.model.persistables.Transaction;
+import net.helix.pendulum.model.TransactionHash;
 import net.helix.pendulum.network.Neighbor;
 import net.helix.pendulum.network.Node;
 import net.helix.pendulum.network.TransactionRequester;
@@ -612,10 +613,11 @@ public class API {
         }
         return (LinkedList) elements;
     }
+
     /**
      * Interrupts and completely aborts the <tt>attachToTangle</tt> process.
      *
-     * @return {@link net.helix.pendulum.service.dto.AbstractResponse.Emptyness}
+     * @return  net.helix.pendulum.service.dto.AbstractResponse.Emptyness
      **/
     private AbstractResponse interruptAttachingToTangleStatement(){
         miner.cancel();
@@ -1518,14 +1520,27 @@ public class API {
      */
     private void storeAndBroadcast(Hash tip1, Hash tip2, int mwm, List<String> txs) throws Exception{
         List<String> powResult = attachToTangleStatement(tip1, tip2, mwm, txs);
-        final List<TransactionViewModel> elements = addValidTxvmToList(powResult);
-        elements.forEach(tx->log.debug(
-                "store_bcast_milestone (len,hash,trunk,branch): {} {} {} {} {}", tx.getBytes().length,
-                tx.getHash().toString(), tx.getTrunkTransactionHash().toString(), tx.getBranchTransactionHash().toString(),
-                tx.getCurrentIndex()
-                )
-        );
-        log.debug("tips = [{}, {}]", tip1.toString(), tip2.toString());
+
+        for (final String hex : powResult) {
+            byte[] txBytes = Hex.decode(hex);
+            TransactionViewModel tx = new TransactionViewModel(
+                                                                txBytes,
+                                                                TransactionHash.calculate(
+                                                                        txBytes,
+                                                                        0,
+                                                                        txBytes.length,
+                                                                        SpongeFactory.create(
+                                                                                SpongeFactory.Mode.S256
+                                                                        )
+                                                                )
+                                                        );
+            log.debug("store_bcast_milestone (len,hash,trunk,branch): {} {} {} {} {}", tx.getBytes().length,
+                    tx.getHash().toString(), tx.getTrunkTransactionHash().toString(), tx.getBranchTransactionHash().toString(),
+                    tx.getCurrentIndex()
+                );
+        }
+//        log.debug("tips = [{}, {}]", tip1.toString(), tip2.toString());
+
         Collections.reverse(powResult);
         storeTransactionsStatement(powResult);
         broadcastTransactionsStatement(powResult);
