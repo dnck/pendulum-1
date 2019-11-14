@@ -325,9 +325,6 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.21.0</version>
                 <configuration>
-                  <forkCount>0</forkCount>
-                </configuration>
-                <configuration>
                     <excludes>
                         <exclude>integration/*.java</exclude>
                     </excludes>
