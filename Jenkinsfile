@@ -16,7 +16,7 @@ pipeline {
         }
         stage('Test') {
             steps {
-                sh 'mvn test'
+                sh 'mvn integration-test -Dlogging-level=INFO'
             }
             post {
                 always {
