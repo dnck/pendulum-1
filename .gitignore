@@ -67,3 +67,5 @@ Validator.*
 
 # os
 .DS_Store
+clean_db.sh
+Makefile
