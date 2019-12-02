@@ -24,5 +24,10 @@ pipeline {
                 }
             }
         }
+        stage("Deploy"){
+        steps {
+            sh './jenkins/scripts/deploy_cluster.sh'
+        }
+        }
     }
 }
