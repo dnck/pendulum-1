@@ -18,3 +18,5 @@ echo 'extracts the value of the <version/> element within <project/> instead.'
 set -x
 VERSION=`mvn help:evaluate -Dexpression=project.version | grep "^[^\[]"`
 set +x
+
+echo 'This is a test of the push polling method.'
