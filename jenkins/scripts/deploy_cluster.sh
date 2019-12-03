@@ -19,5 +19,5 @@ set -x
 VERSION=`mvn help:evaluate -Dexpression=project.version | grep "^[^\[]"`
 set +x
 
-echo 'Test jenkins running on host instead of docker..'
+echo 'Test jenkins running on host instead of docker ... with compose'
 pwd
