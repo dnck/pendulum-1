@@ -20,3 +20,4 @@ VERSION=`mvn help:evaluate -Dexpression=project.version | grep "^[^\[]"`
 set +x
 
 echo 'This is a test of copying files from jenkins home to a different project.'
+pwd
