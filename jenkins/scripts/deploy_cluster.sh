@@ -19,4 +19,4 @@ set -x
 VERSION=`mvn help:evaluate -Dexpression=project.version | grep "^[^\[]"`
 set +x
 
-echo 'This is a test of the push polling method.'
+echo 'This is a test of the docker-compose build after this builds.'
