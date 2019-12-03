@@ -19,5 +19,5 @@ set -x
 VERSION=`mvn help:evaluate -Dexpression=project.version | grep "^[^\[]"`
 set +x
 
-echo 'Test stopping compose.'
+echo 'Testing jenkins deployment from git push ...'
 pwd
