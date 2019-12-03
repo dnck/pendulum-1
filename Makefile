@@ -19,7 +19,4 @@ clean:
 	@rm -rf snapshot-mainnet
 	@rm -rf snapshot-testnet
 	@rm -rf logs
-start-node:
-	@echo "Starting pendulum"
-	@java -jar target/pen*.jar --config config.ini
-
+	@rm -rf testnetdb.log

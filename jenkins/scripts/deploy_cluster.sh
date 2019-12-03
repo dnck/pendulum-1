@@ -19,5 +19,4 @@ set -x
 VERSION=`mvn help:evaluate -Dexpression=project.version | grep "^[^\[]"`
 set +x
 
-echo 'Testing jenkins deployment from git push +1'
-pwd
+echo 'Deploying docker-compose cluster'
