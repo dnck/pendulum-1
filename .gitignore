@@ -78,9 +78,3 @@ Validator.*
 
 # os
 .DS_Store
-<<<<<<< HEAD
-clean_db.sh
-Makefile
-=======
-Makefile
->>>>>>> upstream/dev
