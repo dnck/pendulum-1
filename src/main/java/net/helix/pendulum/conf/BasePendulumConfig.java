@@ -10,6 +10,8 @@ import net.helix.pendulum.model.Hash;
 import net.helix.pendulum.model.HashFactory;
 import net.helix.pendulum.utils.PendulumUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -932,6 +934,16 @@ public abstract class BasePendulumConfig implements PendulumConfig {
     @Parameter(names = "--max_analyzed_transactions", description = TipSelConfig.Descriptions.BELOW_MAX_DEPTH_TRANSACTION_LIMIT)
     protected void setBelowMaxDepthTransactionLimit(int maxAnalyzedTransactions) {
         this.maxAnalyzedTransactions = maxAnalyzedTransactions;
+    }
+
+    @Override
+    public int solidificationQueueCap() {
+        try {
+            return Integer.parseInt(System.getProperty("solidification.queue.cap"));
+        } catch (Exception e) {
+            log.info("cannot parse solidification.queue.cap, using default {}", Defaults.SOLIDIFICATION_QUEUE_CAP);
+        }
+        return Defaults.SOLIDIFICATION_QUEUE_CAP;
     }
 
     // Validator Manager

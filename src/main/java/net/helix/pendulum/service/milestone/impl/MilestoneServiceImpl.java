@@ -2,8 +2,10 @@ package net.helix.pendulum.service.milestone.impl;
 
 import com.google.gson.JsonObject;
 import net.helix.pendulum.BundleValidator;
+import net.helix.pendulum.Pendulum;
 import net.helix.pendulum.TransactionValidator;
 import net.helix.pendulum.conf.ConsensusConfig;
+import net.helix.pendulum.conf.PendulumConfig;
 import net.helix.pendulum.controllers.RoundViewModel;
 import net.helix.pendulum.controllers.TransactionViewModel;
 import net.helix.pendulum.crypto.Merkle;
@@ -60,36 +62,46 @@ public class MilestoneServiceImpl implements MilestoneService {
      */
     private ConsensusConfig config;
 
+// TODO remove it
+//    /**
+//     * This method initializes the instance and registers its dependencies.<br />
+//     * <br />
+//     * It simply stores the passed in values in their corresponding private properties.<br />
+//     * <br />
+//     * Note: Instead of handing over the dependencies in the constructor, we register them lazy. This allows us to have
+//     *       circular dependencies because the instantiation is separated from the dependency injection. To reduce the
+//     *       amount of code that is necessary to correctly instantiate this class, we return the instance itself which
+//     *       allows us to still instantiate, initialize and assign in one line - see Example:<br />
+//     *       <br />
+//     *       {@code milestoneService = new MilestoneServiceImpl().init(...);}
+//     *
+//     * @param tangle Tangle object which acts as a database interface
+//     * @param snapshotProvider snapshot provider which gives us access to the relevant snapshots
+//     * @param config config with important milestone specific settings
+//     * @return the initialized instance itself to allow chaining
+//     */
+//    public MilestoneServiceImpl init(Tangle tangle, SnapshotProvider snapshotProvider, SnapshotService snapshotService, TransactionValidator transactionValidator, ConsensusConfig config) {
+//
+//        this.tangle = tangle;
+//        this.snapshotProvider = snapshotProvider;
+//        this.snapshotService = snapshotService;
+//        this.transactionValidator = transactionValidator;
+//        this.config = config;
+//
+//        return this;
+//    }
 
-    /**
-     * This method initializes the instance and registers its dependencies.<br />
-     * <br />
-     * It simply stores the passed in values in their corresponding private properties.<br />
-     * <br />
-     * Note: Instead of handing over the dependencies in the constructor, we register them lazy. This allows us to have
-     *       circular dependencies because the instantiation is separated from the dependency injection. To reduce the
-     *       amount of code that is necessary to correctly instantiate this class, we return the instance itself which
-     *       allows us to still instantiate, initialize and assign in one line - see Example:<br />
-     *       <br />
-     *       {@code milestoneService = new MilestoneServiceImpl().init(...);}
-     *
-     * @param tangle Tangle object which acts as a database interface
-     * @param snapshotProvider snapshot provider which gives us access to the relevant snapshots
-     * @param config config with important milestone specific settings
-     * @return the initialized instance itself to allow chaining
-     */
-    public MilestoneServiceImpl init(Tangle tangle, SnapshotProvider snapshotProvider, SnapshotService snapshotService, TransactionValidator transactionValidator, ConsensusConfig config) {
+    //region {PUBLIC METHODS] //////////////////////////////////////////////////////////////////////////////////////////
 
-        this.tangle = tangle;
-        this.snapshotProvider = snapshotProvider;
-        this.snapshotService = snapshotService;
-        this.transactionValidator = transactionValidator;
-        this.config = config;
+    public MilestoneService init() {
+        this.tangle = Pendulum.ServiceRegistry.get().resolve(Tangle.class);
+        this.snapshotProvider = Pendulum.ServiceRegistry.get().resolve(SnapshotProvider.class);
+        this.snapshotService = Pendulum.ServiceRegistry.get().resolve(SnapshotService.class);
+        this.transactionValidator = Pendulum.ServiceRegistry.get().resolve(TransactionValidator.class);;
+        this.config = Pendulum.ServiceRegistry.get().resolve(PendulumConfig.class);
 
         return this;
     }
-
-    //region {PUBLIC METHODS] //////////////////////////////////////////////////////////////////////////////////////////
 
     /**
      * {@inheritDoc}
@@ -225,7 +237,7 @@ public class MilestoneServiceImpl implements MilestoneService {
     public Set<Hash> getConfirmedTips(int roundNumber) throws Exception {
 
         RoundViewModel round = RoundViewModel.get(tangle, roundNumber);
-        return round.getConfirmedTips(tangle, config.getValidatorSecurity());
+        return (round == null) ? Collections.emptySet() : round.getConfirmedTips(tangle, config.getValidatorSecurity());
     }
 
     /*@Override

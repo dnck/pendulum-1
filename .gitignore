@@ -78,3 +78,6 @@ Validator.*
 
 # os
 .DS_Store
+
+#hidden files
+.*

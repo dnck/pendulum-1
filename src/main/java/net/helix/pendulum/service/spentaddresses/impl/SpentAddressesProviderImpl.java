@@ -30,8 +30,7 @@ import java.util.stream.Collectors;
  */
 public class SpentAddressesProviderImpl implements SpentAddressesProvider {
 
-    //@VisibleForTesting
-    public RocksDBPersistenceProvider rocksDBPersistenceProvider;
+    private RocksDBPersistenceProvider rocksDBPersistenceProvider;
 
     private ConsensusConfig config;
 
@@ -59,13 +58,20 @@ public class SpentAddressesProviderImpl implements SpentAddressesProvider {
                 columnFamilies,
                 null);
         try {
-            this.rocksDBPersistenceProvider.init();
+            rocksDBPersistenceProvider.init();
             readPreviousEpochsSpentAddresses();
         }
         catch (Exception e) {
             throw new SpentAddressesException("There is a problem with accessing stored spent addresses", e);
         }
         return this;
+    }
+
+    @Override
+    public void shutdown() {
+        if (rocksDBPersistenceProvider != null) {
+            rocksDBPersistenceProvider.shutdown();
+        }
     }
 
     private void readPreviousEpochsSpentAddresses() throws SpentAddressesException {

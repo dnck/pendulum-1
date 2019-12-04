@@ -1,10 +1,12 @@
 package net.helix.pendulum.service.snapshot.impl;
 
+import net.helix.pendulum.Pendulum;
 import net.helix.pendulum.SignedFiles;
 import net.helix.pendulum.conf.ConsensusConfig;
 import net.helix.pendulum.model.Hash;
 import net.helix.pendulum.model.HashFactory;
 import net.helix.pendulum.service.snapshot.*;
+import net.helix.pendulum.service.spentaddresses.SpentAddressesException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +84,10 @@ public class SnapshotProviderImpl implements SnapshotProvider {
      * Internal property for the value returned by {@link SnapshotProvider#getLatestSnapshot()}.
      */
     private Snapshot latestSnapshot;
+
+    public SnapshotProviderImpl() {
+        Pendulum.ServiceRegistry.get().register(SnapshotProvider.class, this);
+    }
 
     /**
      * This method initializes the instance and registers its dependencies.<br />

@@ -1,9 +1,16 @@
 package net.helix.pendulum.storage;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import net.helix.pendulum.controllers.BundleViewModel;
+import net.helix.pendulum.controllers.TransactionViewModel;
+import net.helix.pendulum.event.*;
+import net.helix.pendulum.model.Hash;
 import net.helix.pendulum.model.StateDiff;
 import net.helix.pendulum.model.persistables.*;
 import net.helix.pendulum.utils.Pair;
 import net.helix.pendulum.zmq.MessageQProvider;
+import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,6 +60,7 @@ public class Tangle {
         for(PersistenceProvider provider: this.persistenceProviders) {
             provider.init();
         }
+
     }
 
 
@@ -268,6 +276,53 @@ public class Tangle {
         }
     }
 
+    // TODO: publish the whole bundle to zmq.
+//    @Override
+//    public void handle(EventType type, EventContext ctx) {
+//        switch (type) {
+//            case TX_STORED:
+//                TransactionViewModel txvm = ctx.get(Key.key("TX", TransactionViewModel.class));
+//                publishStoredTx(txvm);
+//                break;
+//        }
+//    }
+
+    ////////////////////
+    //  Methods to handle various events
+    ///////////////
+    private void publishStoredTx(TransactionViewModel txvm) {
+        try {
+            BundleViewModel receivedBundle = BundleViewModel.load(this, txvm.getBundleHash());
+            if (txvm.lastIndex() == receivedBundle.size() - 1) {
+                JsonArray preBundle = new JsonArray();
+                JsonArray publishBundle = new JsonArray();
+                String oracleTopic = null;
+
+                for (Hash txHash : receivedBundle.getHashes()) {
+                    TransactionViewModel transactionViewModel = TransactionViewModel.fromHash(this, txHash);
+                    JsonObject addressTopicJson = new JsonObject();
+                    addressTopicJson.addProperty("tx_hash", transactionViewModel.getHash().toString());
+                    addressTopicJson.addProperty("bundle_hash", transactionViewModel.getBundleHash().toString());
+                    addressTopicJson.addProperty("signature", Hex.toHexString(transactionViewModel.getSignature()));
+                    addressTopicJson.addProperty("bundle_index", transactionViewModel.getCurrentIndex());
+                    preBundle.add(addressTopicJson);
+
+                    if (transactionViewModel.getCurrentIndex() == 0) {
+                        oracleTopic = transactionViewModel.getAddressHash().toString();
+                    }
+                }
+                for (int i = preBundle.size()-1; i >= 0; i--) {
+                    publishBundle.add(preBundle.get(i));
+                }
+                publish("%s %s",
+                        "ORACLE_" + (oracleTopic != null ?
+                                oracleTopic : txvm.getAddressHash().toString())
+                        , publishBundle.toString());
+            }
+        } catch (Exception e) {
+            log.error("Error publishing bundle.", e);
+        }
+    }
     /*
     public boolean merge(Persistable model, Indexable index) throws Exception {
         boolean exists = false;

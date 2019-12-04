@@ -3,21 +3,21 @@ package net.helix.pendulum.service;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
-import net.helix.pendulum.BundleValidator;
-import net.helix.pendulum.Main;
-import net.helix.pendulum.TransactionValidator;
-import net.helix.pendulum.XI;
+import net.helix.pendulum.*;
 import net.helix.pendulum.conf.APIConfig;
 import net.helix.pendulum.conf.BasePendulumConfig;
 import net.helix.pendulum.conf.PendulumConfig;
 import net.helix.pendulum.controllers.*;
-import net.helix.pendulum.crypto.*;
+import net.helix.pendulum.crypto.GreedyMiner;
+import net.helix.pendulum.crypto.Sha3;
+import net.helix.pendulum.crypto.Sponge;
+import net.helix.pendulum.crypto.SpongeFactory;
 import net.helix.pendulum.model.Hash;
 import net.helix.pendulum.model.HashFactory;
 import net.helix.pendulum.model.persistables.Transaction;
 import net.helix.pendulum.network.Neighbor;
 import net.helix.pendulum.network.Node;
-import net.helix.pendulum.network.TransactionRequester;
+import net.helix.pendulum.service.cache.TangleCache;
 import net.helix.pendulum.service.dto.*;
 import net.helix.pendulum.service.ledger.LedgerService;
 import net.helix.pendulum.service.milestone.MilestoneTracker;
@@ -46,6 +46,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+//import net.helix.pendulum.network.impl.TransactionRequesterImpl;
 
 /**
  * <p>
@@ -97,7 +99,7 @@ public class API {
 
     private final PendulumConfig configuration;
     private final XI XI;
-    private final TransactionRequester transactionRequester;
+    //private final Node.RequestQueue transactionRequester;
     private final SpentAddressesService spentAddressesService;
     private final Tangle tangle;
     private final BundleValidator bundleValidator;
@@ -109,6 +111,8 @@ public class API {
     private final TransactionValidator transactionValidator;
     private final MilestoneTracker milestoneTracker;
     private final CandidateTracker candidateTracker;
+
+    private TangleCache tangleCache;
 
     private final int maxFindTxs;
     private final int maxRequestList;
@@ -138,7 +142,7 @@ public class API {
         this.configuration = args.getConfiguration();
         this.XI = args.getXI();
 
-        this.transactionRequester = args.getTransactionRequester();
+        //this.transactionRequester = args.getTransactionRequester();
         this.spentAddressesService = args.getSpentAddressesService();
         this.tangle = args.getTangle();
         this.bundleValidator = args.getBundleValidator();
@@ -188,6 +192,8 @@ public class API {
      */
     public void init(RestConnector connector){
         this.connector = connector;
+        this.tangleCache = Pendulum.ServiceRegistry.get().resolve(TangleCache.class);
+
         connector.init(this::process);
         connector.start();
     }
@@ -593,11 +599,10 @@ public class API {
             //store transactions
             if(transactionViewModel.store(tangle, snapshotProvider.getInitialSnapshot())) {
                 transactionViewModel.setArrivalTime(System.currentTimeMillis());
-                if (transactionViewModel.isMilestoneBundle(tangle) == null) {
-                    transactionValidator.updateStatus(transactionViewModel);
-                }
                 transactionViewModel.updateSender("local");
                 transactionViewModel.update(tangle, snapshotProvider.getInitialSnapshot(), "sender");
+
+
                 if (tangle != null) {
                     tangle.publish("vis %s %s %s", transactionViewModel.getHash(), transactionViewModel.getTrunkTransactionHash(), transactionViewModel.getBranchTransactionHash());
                 }
@@ -622,7 +627,7 @@ public class API {
     /**
      * Interrupts and completely aborts the <tt>attachToTangle</tt> process.
      *
-     * @return {@link net.helix.pendulum.service.dto.AbstractResponse.Emptyness}
+     * @return Empty {@link net.helix.pendulum.service.dto.AbstractResponse}
      **/
     private AbstractResponse interruptAttachingToTangleStatement(){
         miner.cancel();
@@ -652,10 +657,10 @@ public class API {
                 snapshotProvider.getLatestSnapshot().getInitialIndex(),
 
                 node.howManyNeighbors(),
-                node.queuedTransactionsSize(),
+                node.broadcastQueueSize(),
                 System.currentTimeMillis(),
                 tipsViewModel.size(),
-                transactionRequester.numberOfTransactionsToRequest(),
+                node.getRequestQueue().size(),
                 features
         );
     }
@@ -1096,7 +1101,7 @@ public class API {
         for (final TransactionViewModel transactionViewModel : elements) {
             //push first in line to broadcast
             transactionViewModel.weightMagnitude = Sha3.HASH_LENGTH;
-            node.broadcast(transactionViewModel);
+            node.toBroadcastQueue(transactionViewModel);
         }
     }
 
@@ -1449,7 +1454,7 @@ public class API {
         return AbstractResponse.createEmptyResponse();
     }
 
-    public void attachStoreAndBroadcast(final String address, final String message) throws Exception {
+    private void attachStoreAndBroadcast(final String address, final String message) throws Exception {
         final List<Hash> txToApprove = getTransactionToApproveTips(3, Optional.empty());
         attachStoreAndBroadcast(address, message, txToApprove, 0, 1, false);
     }
@@ -1568,7 +1573,7 @@ public class API {
      * @param txToApprove transactions to approve
      * @throws Exception if storing fails
      */
-    private void storeCustomBundle(final Hash sndAddr, final Hash rcvAddr, List<Hash> txToApprove, byte[] data, final long tag, final int mwm, boolean sign, int keyIdx, int maxKeyIdx, String keyfile, int security) throws Exception {
+    public void storeCustomBundle(final Hash sndAddr, final Hash rcvAddr, List<Hash> txToApprove, byte[] data, final long tag, final int mwm, boolean sign, int keyIdx, int maxKeyIdx, String keyfile, int security) throws Exception {
         BundleUtils bundle = new BundleUtils(sndAddr, rcvAddr);
         bundle.create(data, tag, sign, keyIdx, maxKeyIdx, keyfile, security);
         storeAndBroadcast(txToApprove.get(0), txToApprove.get(1), mwm, bundle.getTransactions());
@@ -1660,7 +1665,7 @@ public class API {
         return confirmedTips;
     }
 
-    private List<Hash> addMilestoneReferences(List<Hash> confirmedTips, int roundIndex) throws Exception {
+    public List<Hash> addMilestoneReferences(List<Hash> confirmedTips, int roundIndex) throws Exception {
 
         // get branch and trunk
         List<Hash> txToApprove = new ArrayList<>();
@@ -1677,9 +1682,10 @@ public class API {
                 txToApprove.add(previousRound.getMerkleRoot()); // merkle root of latest milestones
             }
             //branch
-            Collections.sort(confirmedTips);    // sort tips before building merkle root
-            List<List<Hash>> merkleTreeTips = Merkle.buildMerkleTree(confirmedTips);
-            txToApprove.add(merkleTreeTips.get(merkleTreeTips.size() - 1).get(0)); // merkle root of confirmed tips
+            //List<List<Hash>> merkleTreeTips = Merkle.buildMerkleTree(confirmedTips);
+            //txToApprove.add(merkleTreeTips.get(merkleTreeTips.size() - 1).get(0)); // merkle root of confirmed tips
+            Hash root = tangleCache.toMerkleRoot(confirmedTips);
+            txToApprove.add(root);
         }
         return txToApprove;
     }
@@ -1832,12 +1838,10 @@ public class API {
 
     private Function<Map<String, Object>, AbstractResponse> getMissingTransactions() {
         return request -> {
-            synchronized (transactionRequester) {
-                List<String> missingTx = Arrays.stream(transactionRequester.getRequestedTransactions())
+            List<String> missingTx = Arrays.stream(node.getRequestQueue().getRequestedTransactions())
                         .map(Hash::toString)
                         .collect(Collectors.toList());
                 return GetTipsResponse.create(missingTx);
-            }
         };
     }
 
