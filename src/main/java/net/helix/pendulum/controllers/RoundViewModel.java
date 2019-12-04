@@ -2,8 +2,7 @@ package net.helix.pendulum.controllers;
 
 import net.helix.pendulum.TransactionValidator;
 import net.helix.pendulum.conf.BasePendulumConfig;
-import net.helix.pendulum.crypto.merkle.MerkleFactory;
-import net.helix.pendulum.crypto.merkle.MerkleOptions;
+import net.helix.pendulum.crypto.Merkle;
 import net.helix.pendulum.model.Hash;
 import net.helix.pendulum.model.HashFactory;
 import net.helix.pendulum.model.IntegerIndex;
@@ -250,18 +249,29 @@ public class RoundViewModel {
             // add previous milestones to non analyzed transactions
             RoundViewModel prevMilestone = RoundViewModel.get(tangle, round-1);
             if (prevMilestone == null) {
-                if (transaction.getBranchTransactionHash().equals(Hash.NULL_HASH)) {
+                log.trace("prev milestone is null");
+                if (transaction.getTrunkTransactionHash().equals(Hash.NULL_HASH)) {
+                    log.trace("prev milestone = trunk = null");
                     trunk.add(Hash.NULL_HASH);
+                } else {
+                    log.trace("trunk is not null: {}", transaction.getTrunkTransactionHash());
                 }
             } else {
                 Set<Hash> prevMilestones = prevMilestone.getHashes();
-                List<List<Hash>> merkleTree = MerkleFactory.create(MerkleFactory.MerkleTree, MerkleOptions.getDefault()).buildMerkleTree(new ArrayList<>(prevMilestones));
-                if (transaction.getTrunkTransactionHash().equals(merkleTree.get(merkleTree.size() - 1).get(0))) {
+                List<Hash> prevMilestonesList = new ArrayList<>(prevMilestones);
+                Collections.sort(prevMilestonesList);
+                List<List<Hash>> merkleTree = Merkle.buildMerkleTree(prevMilestonesList);
+                Hash merkleRoot = merkleTree.get(merkleTree.size() - 1).get(0);
+                if (transaction.getTrunkTransactionHash().equals(merkleRoot)) {
+                    log.trace("merkle root = trunk");
                     if (prevMilestones.isEmpty()) {
+                        log.trace("prev round was empty");
                         trunk.add(Hash.NULL_HASH);
                     } else {
                         trunk.addAll(prevMilestones);
                     }
+                } else {
+                    log.trace("merkle root ({}) != trunk ({})", merkleRoot, transaction.getTrunkTransactionHash());
                 }
             }
         }
@@ -279,31 +289,49 @@ public class RoundViewModel {
         if (transaction.getCurrentIndex() == transaction.lastIndex()) {
             // tips merkle root
             Set<Hash> confirmedTips = getTipSet(tangle, milestoneTx.getHash(), security);
-            List<List<Hash>> merkleTree = MerkleFactory.create(MerkleFactory.MerkleTree, MerkleOptions.getDefault()).buildMerkleTree(new ArrayList<>(confirmedTips));
-            if (transaction.getBranchTransactionHash().equals(merkleTree.get(merkleTree.size()-1).get(0))) {
+            List<Hash> confirmedTipsList = new ArrayList<>(confirmedTips);
+            Collections.sort(confirmedTipsList);
+            List<List<Hash>> merkleTree = Merkle.buildMerkleTree(confirmedTipsList);
+            Hash merkleRoot = merkleTree.get(merkleTree.size()-1).get(0);
+            if (transaction.getBranchTransactionHash().equals(merkleRoot)) {
+                log.trace("merkle root = branch");
                 if (confirmedTips.isEmpty()){
+                    log.trace("confirmed tips = null");
                     branch.add(Hash.NULL_HASH);
                 } else {
                     branch.addAll(confirmedTips);
                 }
+            } else {
+                log.trace("merkle root ({}) != branch ({})", merkleRoot, transaction.getBranchTransactionHash());
             }
         }
         else {
             // add previous milestones to non analyzed transactions
             RoundViewModel prevMilestone = RoundViewModel.get(tangle, round-1);
             if (prevMilestone == null) {
+                log.trace("prev milestone is null");
                 if (transaction.getBranchTransactionHash().equals(Hash.NULL_HASH)) {
+                    log.trace("prev milestone = branch = null");
                     branch.add(Hash.NULL_HASH);
+                } else {
+                    log.trace("branch is not null: {}", transaction.getBranchTransactionHash());
                 }
             } else {
                 Set<Hash> prevMilestones = prevMilestone.getHashes();
-                List<List<Hash>> merkleTree = MerkleFactory.create(MerkleFactory.MerkleTree, MerkleOptions.getDefault()).buildMerkleTree(new ArrayList<>(prevMilestones));
-                if (transaction.getBranchTransactionHash().equals(merkleTree.get(merkleTree.size() - 1).get(0))) {
+                List<Hash> prevMilestonesList = new ArrayList<>(prevMilestones);
+                Collections.sort(prevMilestonesList);
+                List<List<Hash>> merkleTree = Merkle.buildMerkleTree(prevMilestonesList);
+                Hash merkleRoot = merkleTree.get(merkleTree.size() - 1).get(0);
+                if (transaction.getBranchTransactionHash().equals(merkleRoot)) {
+                    log.trace("merkle root = branch");
                     if (prevMilestones.isEmpty()) {
+                        log.trace("prev round was empty");
                         branch.add(Hash.NULL_HASH);
                     } else {
                         branch.addAll(prevMilestones);
                     }
+                } else {
+                    log.trace("merkle root ({}) != branch ({})", merkleRoot, transaction.getBranchTransactionHash());
                 }
             }
         }
@@ -475,7 +503,9 @@ public class RoundViewModel {
     }
 
     public Hash getMerkleRoot() {
-        List<List<Hash>> merkleTree = MerkleFactory.create(MerkleFactory.MerkleTree, MerkleOptions.getDefault()).buildMerkleTree(new LinkedList<>(getHashes()));
+        List<Hash> milestoneHashes = new ArrayList<>(getHashes());
+        Collections.sort(milestoneHashes);
+        List<List<Hash>> merkleTree = Merkle.buildMerkleTree(milestoneHashes);
         Hash root = merkleTree.get(merkleTree.size()-1).get(0);
         return root;
     }
