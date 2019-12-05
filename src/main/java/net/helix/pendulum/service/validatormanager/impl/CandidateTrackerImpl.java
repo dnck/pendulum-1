@@ -154,7 +154,7 @@ public class CandidateTrackerImpl implements CandidateTracker {
         validators = config.getInitialValidators();
         startRound = RoundIndexUtil.getRound(RoundIndexUtil.getCurrentTime(),  config.getGenesisTime(), config.getRoundDuration(), 2);
 
-        recoverValidators();
+        //recoverValidators();
         return this;
     }
 
