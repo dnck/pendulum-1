@@ -175,7 +175,6 @@ public class API {
         commandRoute.put(ApiCommand.GET_MISSING_TRANSACTIONS, getMissingTransactions());
         commandRoute.put(ApiCommand.CHECK_CONSISTENCY, checkConsistency());
         commandRoute.put(ApiCommand.WERE_ADDRESSES_SPENT_FROM, wereAddressesSpentFrom());
-       // commandRoute.put(ApiCommand.GET_MILESTONES, wereAddressesSpentFrom());
     }
 
     /**
@@ -244,7 +243,7 @@ public class API {
 
             // Is this command allowed to be run from this request address?
             // We check the remote limit API configuration.
-            if (configuration.getRemoteLimitApi().contains(command) && !configuration.getRemoteTrustedApiHosts().contains(netAddress)) {
+            if (configuration.getIgnoredApiEndpoints().contains(command) && !configuration.getAllowedApiHosts().contains(netAddress)) {
                 return AccessLimitedResponse.create("COMMAND " + command + " is not available on this node");
             }
 
@@ -696,7 +695,7 @@ public class API {
             log.trace("tx_confirmations {}:[{}:{}]", transaction.getHash().toString(), transaction.getConfirmations(), (double) transaction.getConfirmations() / n);
 
             // is transaction finalized
-            if(((double)transaction.getConfirmations() / n) > threshold) {
+            if(transaction.getRoundIndex() > 0 && ((double)transaction.getConfirmations() / n) > threshold) {
                 confirmationStates[count] = 1;
             }
             // not finalized yet
@@ -1700,6 +1699,7 @@ public class API {
                 txToApprove.add(previousRound.getMerkleRoot()); // merkle root of latest milestones
             }
             //branch
+            Collections.sort(confirmedTips);    // sort tips before building merkle root
             List<List<Hash>> merkleTreeTips = Merkle.buildMerkleTree(confirmedTips);
             txToApprove.add(merkleTreeTips.get(merkleTreeTips.size() - 1).get(0)); // merkle root of confirmed tips
         }
