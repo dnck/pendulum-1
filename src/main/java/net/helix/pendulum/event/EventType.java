@@ -11,5 +11,6 @@ public enum EventType {
     TX_SOLIDIFIED,
     TX_UPDATED,
     TX_DELETED,
-    STALE_TX
+    STALE_TX,
+    TX_CONFIRMED
 }

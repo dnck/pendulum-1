@@ -14,13 +14,18 @@ public interface SolidificationConfig extends Config {
      */
     boolean isTipSolidifierEnabled();
 
-    
-    int solidificationQueueCap();
+    /**
+     * Default Value: {@value BasePendulumConfig.Defaults#SOLIDIFICATION_QUEUE_CAP}
+     * @return {@value SolidificationConfig.Descriptions#SOLIDIFICATION_QUEUE_CAP}
+     */
+    int getSolidificationQueueCap();
+
     /**
      * Field descriptions
      */
     interface Descriptions {
 
         String TIP_SOLIDIFIER = "Scan the current tips and attempt to mark them as solid";
+        String SOLIDIFICATION_QUEUE_CAP = "?";
     }
 }

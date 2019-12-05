@@ -92,7 +92,7 @@ public abstract class AbstractPendulumTest {
             }
 
             @Override
-            public boolean isDontValidateTestnetMilestoneSig() {
+            public boolean isValidateTestnetMilestoneSig() {
                 return true;
             }
 

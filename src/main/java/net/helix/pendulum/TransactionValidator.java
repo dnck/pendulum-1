@@ -91,7 +91,7 @@ public class TransactionValidator implements PendulumEventListener {
 
         setMwm(testnet, mwm);
 
-        int solidificationQueueCap = config.solidificationQueueCap();
+        int solidificationQueueCap = config.getSolidificationQueueCap();
         forwardSolidificationQueue = new BoundedLinkedListImpl<>(solidificationQueueCap);
         backwardsSolidificationQueue = new BoundedLinkedListImpl<>(solidificationQueueCap);
 

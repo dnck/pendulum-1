@@ -1,6 +1,6 @@
 package net.helix.pendulum.service.snapshot;
 
-import net.helix.pendulum.conf.SnapshotConfig;
+import net.helix.pendulum.conf.ConsensusConfig;
 import net.helix.pendulum.service.spentaddresses.SpentAddressesException;
 
 /**
@@ -48,6 +48,6 @@ public interface SnapshotProvider {
      */
     void shutdown();
     
-    SnapshotProvider init(SnapshotConfig config) throws SnapshotException, SpentAddressesException;
+    SnapshotProvider init(ConsensusConfig config) throws SnapshotException, SpentAddressesException;
 
 }

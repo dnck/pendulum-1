@@ -2,8 +2,8 @@ package net.helix.pendulum.service.spentaddresses;
 
 import java.util.Collection;
 
+import net.helix.pendulum.conf.ConsensusConfig;
 import net.helix.pendulum.model.Hash;
-import net.helix.pendulum.conf.SnapshotConfig;
 
 /**
  * Find, mark and store spent addresses
@@ -44,7 +44,7 @@ public interface SpentAddressesProvider {
      */
     void saveAddressesBatch(Collection<Hash> addressHashes) throws SpentAddressesException;
 
-    SpentAddressesProvider init(SnapshotConfig config) throws SpentAddressesException;
+    SpentAddressesProvider init(ConsensusConfig config) throws SpentAddressesException;
     
     void shutdown();
 

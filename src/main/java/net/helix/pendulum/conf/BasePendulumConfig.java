@@ -10,8 +10,6 @@ import net.helix.pendulum.model.Hash;
 import net.helix.pendulum.model.HashFactory;
 import net.helix.pendulum.utils.PendulumUtils;
 import org.apache.commons.lang3.ArrayUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.net.InetAddress;
@@ -100,8 +98,8 @@ public abstract class BasePendulumConfig implements PendulumConfig {
         int POW_THREADS = 8;
 
         //Resource directory:
-        String RESOUCER_PATH = "./src/main/resources";
-        String DEFAULT_RESOUCE_PATH = "./resources";
+        String RESOURCE_PATH = "./src/main/resources";
+        String DEFAULT_RESOURCE_PATH = "./resources";
 
         //Validator Manager
         boolean VALIDATOR_MANAGER_ENABLED = false;
@@ -136,6 +134,8 @@ public abstract class BasePendulumConfig implements PendulumConfig {
         int VALIDATOR_SECURITY = 2;
         int NUMBER_OF_ACTIVE_VALIDATORS = 1;
         double CONFIRMATION_THRESHOLD = 0.66;
+        int SOLIDIFICATION_QUEUE_CAP = 1000;
+
 
         // bootstrap hash for empty round
         Hash EMPTY_ROUND_HASH = HashFactory.ADDRESS.create(
@@ -217,8 +217,8 @@ public abstract class BasePendulumConfig implements PendulumConfig {
 
     // CONSENSUS RELATED CONFIGURATION
     //Milestone
-    protected String resourcePath = Defaults.RESOUCER_PATH;
-    protected String defaultResourcePath = Defaults.DEFAULT_RESOUCE_PATH;
+    protected String resourcePath = Defaults.RESOURCE_PATH;
+    protected String defaultResourcePath = Defaults.DEFAULT_RESOURCE_PATH;
     protected int milestoneKeyDepth = Defaults.MILESTONE_KEY_DEPTH;
 
     //Tip Selection
@@ -228,6 +228,7 @@ public abstract class BasePendulumConfig implements PendulumConfig {
 
     //Tip Solidification
     protected boolean tipSolidifierEnabled = Defaults.TIP_SOLIDIFIER_ENABLED;
+    protected int solidificationQueueCap = Defaults.SOLIDIFICATION_QUEUE_CAP;
 
     //PoW
     protected int powThreads = Defaults.POW_THREADS;
@@ -936,18 +937,26 @@ public abstract class BasePendulumConfig implements PendulumConfig {
         this.maxAnalyzedTransactions = maxAnalyzedTransactions;
     }
 
+//    @Override
+//    public int getSolidificationQueueCap() {
+//        try {
+//            return Integer.parseInt(System.getProperty("solidification.queue.cap"));
+//        } catch (Exception e) {
+//            log.info("cannot parse solidification.queue.cap, using default {}", Defaults.SOLIDIFICATION_QUEUE_CAP);
+//        }
+//        return Defaults.SOLIDIFICATION_QUEUE_CAP;
+//    }
+
+    @JsonProperty
+    @Parameter(names = {"--solid_queue_cap"}, description = SolidificationConfig.Descriptions.SOLIDIFICATION_QUEUE_CAP)
+    protected void setSolidificationQueueCap(int solidificationQueueCap) { this.solidificationQueueCap = solidificationQueueCap; }
+
     @Override
-    public int solidificationQueueCap() {
-        try {
-            return Integer.parseInt(System.getProperty("solidification.queue.cap"));
-        } catch (Exception e) {
-            log.info("cannot parse solidification.queue.cap, using default {}", Defaults.SOLIDIFICATION_QUEUE_CAP);
-        }
-        return Defaults.SOLIDIFICATION_QUEUE_CAP;
-    }
+    public int getSolidificationQueueCap() { return solidificationQueueCap; }
 
     // Validator Manager
     public boolean getValidatorManagerEnabled() {return validatorManagerEnabled; }
+
     @JsonProperty
     @Parameter(names = {"--validator_manager"}, description = ValidatorManagerConfig.Descriptions.VALIDATOR_MANAGER_ENABLED, arity = 1)
     protected void setValidatorManagerEnabled(boolean validatorManagerEnabled) { this.validatorManagerEnabled = validatorManagerEnabled; }
